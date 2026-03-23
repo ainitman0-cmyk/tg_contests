@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TG Hunter Elite</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #050810; color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        .glass-card { background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .hot-glow { animation: glow 1.5s ease-in-out infinite alternate; }
+        @keyframes glow {
+            from { box-shadow: 0 0 5px -2px #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+            to { box-shadow: 0 0 15px -2px #ef4444; border-color: rgba(239, 68, 68, 0.6); }
+        }
+        input { background: #1f2937 !important; color: white !important; border: 1px solid #374151 !important; border-radius: 1rem !important; }
+    </style>
+</head>
+<body class="pb-40">
+    <div class="max-w-md mx-auto p-6">
+        <header class="flex justify-between items-start mb-8 pt-4">
+            <div>
+                <h1 class="text-4xl font-black italic tracking-tighter text-white uppercase">Hunter<span class="text-blue-500">.</span></h1>
+                <p id="active-badge" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Готов к работе</p>
+            </div>
+            <button onclick="toggleArchive()" id="archive-btn" class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl active:scale-90 transition-all">
+                <span id="archive-text" class="text-[10px] font-black text-slate-400 uppercase">Архив</span>
+            </button>
+        </header>
+
+        <div class="grid grid-cols-2 gap-3 mb-8">
+            <div class="glass-card p-5 rounded-[2rem] text-center">
+                <p class="text-[9px] font-black text-slate-500 uppercase mb-1 italic">Шанс успеха</p>
+                <p id="avg-chance" class="text-2xl font-black text-white">0%</p>
+            </div>
+            <div class="glass-card p-5 rounded-[2rem] text-center">
+                <p class="text-[9px] font-black text-slate-500 uppercase mb-1 italic">Скоро итоги</p>
+                <p id="burning-count" class="text-2xl font-black text-red-500">0</p>
+            </div>
+        </div>
+
+        <div id="contest-container" class="space-y-4"></div>
+    </div>
+
+    <!-- Кнопки управления -->
+    <div class="fixed bottom-8 left-0 right-0 px-8 z-50 flex flex-col gap-2">
+        <button onclick="openModal()" class="w-full bg-blue-600 py-5 rounded-[2rem] shadow-2xl shadow-blue-900/40 font-black text-white text-lg active:scale-95 transition-all">
+            ＋ НОВЫЙ КОНКУРС
+        </button>
+    </div>
+
+    <!-- Модалка -->
+    <div id="modal" class="fixed inset-0 bg-black/95 backdrop-blur-xl hidden z-[100] items-center justify-center p-6">
+        <div class="bg-slate-900 w-full max-w-sm p-8 rounded-[3rem] border border-white/5 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-black text-white">Участие</h2>
+                <button onclick="fillFromLast()" class="bg-orange-500/20 text-orange-400 text-[10px] font-black px-3 py-1 rounded-lg border border-orange-500/30">СКРИНШОТ</button>
+            </div>
+            
+            <div class="space-y-4">
+                <input type="text" id="in-name" placeholder="Название канала" class="w-full p-4 outline-none">
+                <input type="text" id="in-prize" placeholder="Приз" class="w-full p-4 outline-none">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="date" id="in-date" class="p-4 text-xs outline-none">
+                    <input type="time" id="in-time" class="p-4 text-xs outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" id="in-winners" placeholder="Побед" class="p-4 text-xs outline-none">
+                    <input type="number" id="in-users" placeholder="Человек" class="p-4 text-xs outline-none">
+                </div>
+                <div class="flex gap-4 pt-4">
+                    <button onclick="closeModal()" class="flex-1 font-bold text-slate-500">Отмена</button>
+                    <button onclick="save()" class="flex-[2] bg-blue-600 py-4 rounded-2xl font-black">СОХРАНИТЬ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        let contests = JSON.parse(localStorage.getItem('hunter_final_v1') || '[]');
+        let isArchive = false;
+
+        function openModal() {
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('in-date').valueAsDate = new Date();
+        }
+
+        // Функция "быстрого заполнения" по твоему скриншоту
+        function fillFromLast() {
+            document.getElementById('in-name').value = 'OldSchool';
+            document.getElementById('in-prize').value = 'Рюкзак';
+            document.getElementById('in-date').value = '2026-03-28';
+            document.getElementById('in-time').value = '17:00';
+            document.getElementById('in-winners').value = '3';
+            document.getElementById('in-users').value = '179';
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        }
+
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+        function save() {
+            const name = document.getElementById('in-name').value;
+            const prize = document.getElementById('in-prize').value;
+            const date = document.getElementById('in-date').value;
+            const time = document.getElementById('in-time').value;
+            const winners = parseInt(document.getElementById('in-winners').value) || 1;
+            const users = parseInt(document.getElementById('in-users').value) || 0;
+
+            if(!name || !prize || !date) return;
+
+            contests.push({
+                id: Date.now(), name, prize, date, time, winners, users,
+                done: false, ts: new Date(`${date}T${time}`).getTime()
+            });
+
+            localStorage.setItem('hunter_final_v1', JSON.stringify(contests));
+            closeModal();
+            render();
+            if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        function toggleStatus(id) {
+            const idx = contests.findIndex(x => x.id === id);
+            contests[idx].done = !contests[idx].done;
+            localStorage.setItem('hunter_final_v1', JSON.stringify(contests));
+            render();
+        }
+
+        function toggleArchive() { isArchive = !isArchive; render(); }
+
+        function render() {
+            const container = document.getElementById('contest-container');
+            container.innerHTML = '';
+            const filtered = contests.filter(c => c.done === isArchive);
+            const now = Date.now();
+
+            const active = contests.filter(c => !c.done);
+            document.getElementById('active-badge').innerText = `В РАБОТЕ: ${active.length}`;
+            const burning = active.filter(c => Math.abs(c.ts - now) < 3600000).length;
+            document.getElementById('burning-count').innerText = burning;
+
+            let totalChance = 0;
+            active.forEach(c => { if(c.users > 0) totalChance += (c.winners / c.users); });
+            document.getElementById('avg-chance').innerText = active.length > 0 ? (totalChance * 100).toFixed(1) + '%' : '0%';
+
+            filtered.sort((a,b) => a.ts - b.ts).forEach(item => {
+                const diff = item.ts - now;
+                const isHot = !item.done && diff > 0 && diff < 3600000;
+                const chance = item.users > 0 ? ((item.winners / item.users) * 100).toFixed(1) : '?';
+                
+                const card = document.createElement('div');
+                card.className = `glass-card p-5 rounded-[2rem] flex justify-between items-center ${isHot ? 'hot-glow' : ''} ${item.done ? 'opacity-30' : ''}`;
+                card.innerHTML = `
+                    <div class="flex-1" onclick="toggleStatus(${item.id})">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[9px] font-black bg-slate-800 text-slate-400 px-2 py-0.5 rounded uppercase">
+                                ${new Date(item.date).toLocaleDateString('ru-RU', {day:'numeric', month:'short'})} ${item.time}
+                            </span>
+                            ${isHot ? '<span class="text-[9px] font-black text-red-500 animate-pulse italic">ПРОВЕРЯЙ! 🔥</span>' : ''}
+                        </div>
+                        <h3 class="text-white font-black text-lg leading-tight">${item.name}</h3>
+                        <p class="text-blue-500 font-bold text-xs uppercase tracking-tighter">🎁 ${item.prize} <span class="text-slate-500 ml-1">(${chance}%)</span></p>
+                    </div>
+                    <button onclick="if(confirm('Удалить?')){contests=contests.filter(x=>x.id!==${item.id});localStorage.setItem('hunter_final_v1',JSON.stringify(contests));render();}" class="text-slate-800 text-2xl ml-4">&times;</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+        render();
+    </script>
+</body>
+</html>
